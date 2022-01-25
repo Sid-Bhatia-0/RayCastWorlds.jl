@@ -20,6 +20,7 @@ const NUM_ACTIONS = 4
 
 mutable struct SingleRoomWorld{T, RNG, R}
     tile_map::BitArray{3}
+    tile_length::Int
     num_directions::Int
     player_position_wu::SA.SVector{2, T}
     player_direction_au::Int
@@ -41,6 +42,7 @@ end
 
 function SingleRoomWorld(;
         T = Float32,
+        tile_length = 256,
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
         num_directions = 128, # angles go from 0 to num_directions - 1 (0 corresponding to positive x-axes)
@@ -83,6 +85,7 @@ function SingleRoomWorld(;
     done = false
 
     world = SingleRoomWorld(tile_map,
+                       tile_length,
                        num_directions,
                        player_position_wu,
                        player_direction_au,
@@ -257,6 +260,7 @@ end
 
 function SingleRoom(;
         T = Float32,
+        tile_length = 256,
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
         num_directions = 128,
@@ -274,6 +278,7 @@ function SingleRoom(;
     C = UInt32
 
     world = SingleRoomWorld(T = T,
+                           tile_length = tile_length,
                            height_tile_map_tu = height_tile_map_tu,
                            width_tile_map_tu = width_tile_map_tu,
                            num_directions = num_directions,
