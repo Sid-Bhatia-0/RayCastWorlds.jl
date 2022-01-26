@@ -143,6 +143,7 @@ function RCW.act!(world::SingleRoomWorld, action)
     @assert action in Base.OneTo(NUM_ACTIONS) "Invalid action: $(action)"
 
     tile_map = world.tile_map
+    tile_length = world.tile_length
     player_direction_au = world.player_direction_au
     player_position_wu = world.player_position_wu
     player_radius_wu = world.player_radius_wu
@@ -152,7 +153,6 @@ function RCW.act!(world::SingleRoomWorld, action)
 
     if action in Base.OneTo(2)
         directions_wu = world.directions_wu
-        position_increment_wu = world.position_increment_wu
         player_direction_wu = directions_wu[player_direction_au + 1]
         wall_map = @view tile_map[WALL, :, :]
 
@@ -223,7 +223,7 @@ function RCW.cast_rays!(world::SingleRoomWorld)
     ray_direction_left = ray_direction_mid - numerator(semi_field_of_view_wu) * camera_direction
 
     for i in 1:num_rays
-        ray_direction_wu = scaled_section_formula(ray_direction_left, ray_direction_right, i - 1, num_rays - 1)
+        ray_direction_wu = scaled_section_formula(ray_direction_left, ray_direction_right, i - 1, num_rays - i)
         ray_directions_wu[i] = ray_direction_wu
         i_hit_wu, j_hit_wu, i_hit_tu, j_hit_tu, hit_dimension = RC.cast_ray(obstacle_map, tile_length, player_position_wu[1], player_position_wu[2], ray_direction_wu[1], ray_direction_wu[2], 1024, RC.FLOAT_DIVISION)
         ray_stop_position_tu[1, i] = i_hit_tu
@@ -267,12 +267,11 @@ function SingleRoom(;
         tile_length = 256,
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
-        num_directions = 128,
-        player_radius_wu = convert(T, 1 / 8),
-        position_increment_wu = convert(T, 1 / 8),
+        num_directions = 16,
+        player_radius_wu = 32,
         rng = Random.GLOBAL_RNG,
         R = Float32,
-        semi_field_of_view_wu = convert(T, 2/3),
+        semi_field_of_view_wu = 2//3,
         num_rays = 512,
         pu_per_tu = 32,
         camera_height_tile_wu = convert(T, 1),
@@ -287,7 +286,6 @@ function SingleRoom(;
                            width_tile_map_tu = width_tile_map_tu,
                            num_directions = num_directions,
                            player_radius_wu = player_radius_wu,
-                           position_increment_wu = position_increment_wu,
                            rng = rng,
                            R = R,
                            semi_field_of_view_wu = semi_field_of_view_wu,
@@ -380,6 +378,14 @@ function draw_tile_map!(top_view, tile_map, colors)
     return nothing
 end
 
+function get_normalized_dot_product(v1, v2)
+    x1 = v1[1]
+    y1 = v1[2]
+    x2 = v2[1]
+    y2 = v2[2]
+    return (x1 * x2 + y1 * y2) / (hypot(x1, y1) * hypot(x2, y2))
+end
+
 function RCW.update_camera_view!(env::SingleRoom)
     world = env.world
     camera_view = env.camera_view
@@ -392,6 +398,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     camera_height_tile_wu = env.camera_height_tile_wu
 
     tile_map = world.tile_map
+    tile_length = world.tile_length
     player_direction_au = world.player_direction_au
     player_position_wu = world.player_position_wu
     ray_directions_wu = world.ray_directions_wu
@@ -410,9 +417,10 @@ function RCW.update_camera_view!(env::SingleRoom)
     for i in 1:num_rays
         ray_direction_wu = ray_directions_wu[i]
 
-        projected_distance_wu = ray_distance_wu[i] * sum(player_direction_wu .* ray_direction_wu)
+        normalized_projected_distance_wu = ray_distance_wu[i] * get_normalized_dot_product(player_direction_wu, ray_direction_wu)
 
-        height_line = camera_height_tile_wu * num_rays / (2 * semi_field_of_view_wu * projected_distance_wu)
+        height_line = camera_height_tile_wu * num_rays / (2 * semi_field_of_view_wu * normalized_projected_distance_wu)
+
         if isfinite(height_line)
             height_line_pu = floor(Int, height_line)
         else
@@ -437,15 +445,13 @@ function RCW.update_camera_view!(env::SingleRoom)
             end
         end
 
-        k = width_camera_view_pu - i + 1
-
         if height_line_pu >= height_camera_view_pu - 1
-            camera_view[:, k] .= color
+            camera_view[:, i] .= color
         else
             padding_pu = (height_camera_view_pu - height_line_pu) ÷ 2
-            camera_view[1:padding_pu, k] .= ceiling_color
-            camera_view[padding_pu + 1 : end - padding_pu, k] .= color
-            camera_view[end - padding_pu + 1 : end, k] .= floor_color
+            camera_view[1:padding_pu, i] .= ceiling_color
+            camera_view[padding_pu + 1 : end - padding_pu, i] .= color
+            camera_view[end - padding_pu + 1 : end, i] .= floor_color
         end
     end
 
@@ -459,6 +465,7 @@ function RCW.update_top_view!(env::SingleRoom)
     ray_color = env.ray_color
     player_color = env.player_color
     tile_map = world.tile_map
+    tile_length = world.tile_length
     player_direction_au = world.player_direction_au
     player_position_wu = world.player_position_wu
     ray_directions_wu = world.ray_directions_wu
@@ -475,18 +482,24 @@ function RCW.update_top_view!(env::SingleRoom)
 
     pu_per_tu = height_top_view_pu ÷ height_tile_map_tu
 
-    i_player_position_pu, j_player_position_pu = RCW.wu_to_pu.(player_position_wu, pu_per_tu)
-    player_radius_pu = RCW.wu_to_pu(player_radius_wu, pu_per_tu)
+    wu_per_pu = tile_length ÷ pu_per_tu
+    i_player_position_pu = RCW.wu_to_pu(player_position_wu[1], wu_per_pu)
+    j_player_position_pu = RCW.wu_to_pu(player_position_wu[2], wu_per_pu)
+    player_radius_pu = RCW.wu_to_pu(player_radius_wu, wu_per_pu)
 
     draw_tile_map!(top_view, tile_map, tile_map_colors)
 
     for i in 1:num_rays
         ray_direction_wu = ray_directions_wu[i]
-        i_ray_stop_pu, j_ray_stop_pu = RCW.wu_to_pu.(player_position_wu + ray_distance_wu[i] * ray_direction_wu, pu_per_tu)
-        SD.draw!(top_view, SD.Line(SD.Point(i_player_position_pu, j_player_position_pu), SD.Point(i_ray_stop_pu, j_ray_stop_pu)), ray_color)
+        ray_direction_wu_norm = hypot(ray_direction_wu[1], ray_direction_wu[2])
+        x_ray_direction_wu_normalized = ray_direction_wu[1] / ray_direction_wu_norm
+        y_ray_direction_wu_normalized = ray_direction_wu[2] / ray_direction_wu_norm
+        i_ray_stop_pu = RCW.wu_to_pu(player_position_wu[1] + ray_distance_wu[i] * x_ray_direction_wu_normalized, wu_per_pu)
+        j_ray_stop_pu = RCW.wu_to_pu(player_position_wu[2] + ray_distance_wu[i] * y_ray_direction_wu_normalized, wu_per_pu)
+        SD.draw!(top_view, SD.Line(SD.Point(round(Int, i_player_position_pu), round(Int, j_player_position_pu)), SD.Point(round(Int, i_ray_stop_pu), round(Int, j_ray_stop_pu))), ray_color)
     end
 
-    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pu, j_player_position_pu - player_radius_pu), 2 * player_radius_pu + 1), player_color)
+    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pu, j_player_position_pu - player_radius_pu), 2 * player_radius_pu), player_color)
 
     return nothing
 end
