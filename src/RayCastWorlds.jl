@@ -1,5 +1,6 @@
 module RayCastWorlds
 
+import RayCaster as RC
 import ReinforcementLearningBase as RLBase
 
 abstract type AbstractGame end

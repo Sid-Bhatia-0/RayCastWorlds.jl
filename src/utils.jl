@@ -13,8 +13,8 @@ pu_to_tu(i_pu, pu_per_tu) = (i_pu - 1) ÷ pu_per_tu + 1
 turn_left(direction_au, num_directions) = mod(direction_au + 1, num_directions)
 turn_right(direction_au, num_directions) = mod(direction_au - 1, num_directions)
 
-move_forward(position_wu, direction_wu, position_increment_wu) = position_wu + position_increment_wu * direction_wu
-move_backward(position_wu, direction_wu, position_increment_wu) = position_wu - position_increment_wu * direction_wu
+move_forward(position_wu, direction_wu) = position_wu + direction_wu
+move_backward(position_wu, direction_wu) = position_wu - direction_wu
 
 #####
 ##### sampling empty tiles on the tile map

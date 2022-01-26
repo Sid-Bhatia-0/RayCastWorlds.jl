@@ -22,11 +22,10 @@ mutable struct SingleRoomWorld{T, RNG, R}
     tile_map::BitArray{3}
     tile_length::Int
     num_directions::Int
-    player_position_wu::SA.SVector{2, T}
+    player_position_wu::CartesianIndex{2}
     player_direction_au::Int
-    player_radius_wu::T
-    position_increment_wu::T
-    directions_wu::Vector{SA.SVector{2, T}}
+    player_radius_wu::Int
+    directions_wu::Vector{CartesianIndex{2}}
     ray_stop_position_tu::Array{Int, 2}
     ray_hit_dimension::Array{Int, 1}
     ray_distance_wu::Array{T, 1}
@@ -35,9 +34,9 @@ mutable struct SingleRoomWorld{T, RNG, R}
     reward::R
     goal_reward::R
     done::Bool
-    semi_field_of_view_wu::T
+    semi_field_of_view_wu::Rational{Int}
     num_rays::Int
-    ray_directions_wu::Vector{SA.SVector{2, T}}
+    ray_directions_wu::Vector{CartesianIndex{2}}
 end
 
 function SingleRoomWorld(;
@@ -45,14 +44,15 @@ function SingleRoomWorld(;
         tile_length = 256,
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
-        num_directions = 128, # angles go from 0 to num_directions - 1 (0 corresponding to positive x-axes)
-        player_radius_wu = convert(T, 1 / 8), # should be less than 0.5
-        position_increment_wu = convert(T, 1 / 8),
+        num_directions = 16,
+        player_radius_wu = 32,
         rng = Random.GLOBAL_RNG,
         R = Float32,
-        semi_field_of_view_wu = convert(T, 2/3),
+        semi_field_of_view_wu = 2//3,
         num_rays = 512,
     )
+
+    @assert iseven(tile_length)
 
     tile_map = falses(NUM_OBJECTS, height_tile_map_tu, width_tile_map_tu)
 
@@ -64,18 +64,18 @@ function SingleRoomWorld(;
     goal_position = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
     tile_map[GOAL, goal_position] = true
 
-    directions_wu = Array{SA.SVector{2, T}}(undef, num_directions)
+    directions_wu = Array{CartesianIndex{2}}(undef, num_directions)
     for i in 1:num_directions
         theta_wu = (i - 1) * 2 * pi / num_directions
-        directions_wu[i] = SA.SVector(convert(T, cos(theta_wu)), convert(T, sin(theta_wu)))
+        directions_wu[i] = CartesianIndex(round(Int, player_radius_wu * cos(theta_wu)), round(Int, player_radius_wu * sin(theta_wu)))
     end
 
     player_position_tu = RCW.sample_empty_position(rng, tile_map)
-    player_position_wu = SA.SVector(convert(T, player_position_tu[1] - 0.5), convert(T, player_position_tu[2] - 0.5))
+    player_position_wu = CartesianIndex(RC.get_tile_end(player_position_tu[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(player_position_tu[2], tile_length) - tile_length ÷ 2)
 
     player_direction_au = rand(rng, 0 : num_directions - 1)
 
-    ray_directions_wu = Array{SA.SVector{2, T}}(undef, num_rays)
+    ray_directions_wu = Array{CartesianIndex{2}}(undef, num_rays)
     ray_stop_position_tu = Array{Int}(undef, 2, num_rays)
     ray_hit_dimension = Array{Int}(undef, num_rays)
     ray_distance_wu = Array{T}(undef, num_rays)
@@ -90,7 +90,6 @@ function SingleRoomWorld(;
                        player_position_wu,
                        player_direction_au,
                        player_radius_wu,
-                       position_increment_wu,
                        directions_wu,
                        ray_stop_position_tu,
                        ray_hit_dimension,
@@ -112,6 +111,7 @@ end
 
 function RCW.reset!(world::SingleRoomWorld{T}) where {T}
     tile_map = world.tile_map
+    tile_length = world.tile_length
     rng = world.rng
     player_radius_wu = world.player_radius_wu
     goal_position = world.goal_position
@@ -125,7 +125,7 @@ function RCW.reset!(world::SingleRoomWorld{T}) where {T}
     tile_map[GOAL, new_goal_position] = true
 
     new_player_position_tu = RCW.sample_empty_position(rng, tile_map)
-    new_player_position_wu = SA.SVector(convert(T, new_player_position_tu[1] - 0.5), convert(T, new_player_position_tu[2] - 0.5))
+    new_player_position_wu = CartesianIndex(RC.get_tile_end(new_player_position_tu[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(new_player_position_tu[2], tile_length) - tile_length ÷ 2)
     world.player_position_wu = new_player_position_wu
 
     new_player_direction_au = rand(rng, 0 : num_directions - 1)
@@ -157,13 +157,13 @@ function RCW.act!(world::SingleRoomWorld, action)
         wall_map = @view tile_map[WALL, :, :]
 
         if action == 1
-            new_player_position_wu = RCW.move_forward(player_position_wu, player_direction_wu, position_increment_wu)
+            new_player_position_wu = RCW.move_forward(player_position_wu, player_direction_wu)
         else
-            new_player_position_wu = RCW.move_backward(player_position_wu, player_direction_wu, position_increment_wu)
+            new_player_position_wu = RCW.move_backward(player_position_wu, player_direction_wu)
         end
 
-        is_colliding_with_goal = RCW.is_player_colliding(goal_map, new_player_position_wu, player_radius_wu)
-        is_colliding_with_wall = RCW.is_player_colliding(wall_map, new_player_position_wu, player_radius_wu)
+        is_colliding_with_goal = RCW.is_player_colliding(goal_map, tile_length, new_player_position_wu, player_radius_wu)
+        is_colliding_with_wall = RCW.is_player_colliding(wall_map, tile_length, new_player_position_wu, player_radius_wu)
 
         if is_colliding_with_goal || is_colliding_with_wall
             if is_colliding_with_goal
@@ -194,9 +194,11 @@ function RCW.act!(world::SingleRoomWorld, action)
 end
 
 rotate_minus_90(vec::SA.SVector{2}) = typeof(vec)(vec[2], -vec[1])
+rotate_minus_90(vec) = typeof(vec)(vec[2], -vec[1])
 
 function RCW.cast_rays!(world::SingleRoomWorld)
     tile_map = world.tile_map
+    tile_length = world.tile_length
     player_direction_au = world.player_direction_au
     player_position_wu = world.player_position_wu
     num_rays = length(world.ray_directions_wu)
@@ -214,24 +216,26 @@ function RCW.cast_rays!(world::SingleRoomWorld)
     field_of_view_end_au = field_of_view_start_au + num_rays - 1
 
     num_rays = length(ray_directions_wu)
-    player_direction_wu = directions_wu[player_direction_au + 1]
-    camera_direction_wu = rotate_minus_90(player_direction_wu)
-    first_ray_direction_wu = player_direction_wu + semi_field_of_view_wu * camera_direction_wu
-    last_ray_direction_wu = player_direction_wu - semi_field_of_view_wu * camera_direction_wu
-    unnormalized_ray_directions_wu_range = range(first_ray_direction_wu, last_ray_direction_wu, length = num_rays)
+    player_direction = directions_wu[player_direction_au + 1]
+    camera_direction = rotate_minus_90(player_direction)
+    ray_direction_mid = denominator(semi_field_of_view_wu) * player_direction
+    ray_direction_right = ray_direction_mid + numerator(semi_field_of_view_wu) * camera_direction
+    ray_direction_left = ray_direction_mid - numerator(semi_field_of_view_wu) * camera_direction
 
     for i in 1:num_rays
-        ray_direction_wu = LA.normalize(unnormalized_ray_directions_wu_range[i])
+        ray_direction_wu = scaled_section_formula(ray_direction_left, ray_direction_right, i - 1, num_rays - 1)
         ray_directions_wu[i] = ray_direction_wu
-        i_hit_tu, j_hit_tu, hit_dimension, side_dist_wu = RC.cast_ray(obstacle_map, player_position_wu..., ray_direction_wu...)
+        i_hit_wu, j_hit_wu, i_hit_tu, j_hit_tu, hit_dimension = RC.cast_ray(obstacle_map, tile_length, player_position_wu[1], player_position_wu[2], ray_direction_wu[1], ray_direction_wu[2], 1024, RC.FLOAT_DIVISION)
         ray_stop_position_tu[1, i] = i_hit_tu
         ray_stop_position_tu[2, i] = j_hit_tu
         ray_hit_dimension[i] = hit_dimension
-        ray_distance_wu[i] = side_dist_wu
+        ray_distance_wu[i] = hypot(i_hit_wu - player_position_wu[1], j_hit_wu - player_position_wu[2])
     end
 
     return nothing
 end
+
+scaled_section_formula(v1, v2, m, n) = typeof(v1)(m * v2[1] + n * v1[1], m * v2[2] + n * v1[2])
 
 #####
 ##### drawing & playing
