@@ -1,6 +1,5 @@
 module SingleRoomModule
 
-import LinearAlgebra as LA
 import MiniFB as MFB
 import Random
 import ..RayCastWorlds as RCW
