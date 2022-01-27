@@ -7,7 +7,6 @@ import ..RayCastWorlds as RCW
 import RayCaster as RC
 import ReinforcementLearningBase as RLBase
 import SimpleDraw as SD
-import StaticArrays as SA
 
 #####
 ##### game logic
@@ -193,7 +192,6 @@ function RCW.act!(world::SingleRoomWorld, action)
     return nothing
 end
 
-rotate_minus_90(vec::SA.SVector{2}) = typeof(vec)(vec[2], -vec[1])
 rotate_minus_90(vec) = typeof(vec)(vec[2], -vec[1])
 
 function RCW.cast_rays!(world::SingleRoomWorld)
