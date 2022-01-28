@@ -57,7 +57,7 @@ function SingleRoom(;
         tile_length = 256,
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
-        num_directions = 16,
+        num_directions = 64,
         player_radius_wu = 32,
         rng = Random.GLOBAL_RNG,
         R = Float32,
