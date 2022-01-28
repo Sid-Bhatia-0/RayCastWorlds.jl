@@ -33,7 +33,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     player_angle::Int
     player_radius::Int
     ray_cast_outputs::Vector{Tuple{T, T, Int, Int, Int, Int, Int}}
-    goal_position::CartesianIndex{2}
+    goal_tile::CartesianIndex{2}
     rng::RNG
     reward::R
     goal_reward::R
@@ -82,8 +82,8 @@ function SingleRoom(;
     tile_map[WALL, 1, :] .= true
     tile_map[WALL, height_tile_map_tu, :] .= true
 
-    goal_position = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
-    tile_map[GOAL, goal_position] = true
+    goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
+    tile_map[GOAL, goal_tile] = true
 
     player_tile = RCW.sample_empty_position(rng, tile_map)
     player_position = CartesianIndex(RC.get_tile_end(player_tile[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(player_tile[2], tile_length) - tile_length ÷ 2)
@@ -120,7 +120,7 @@ function SingleRoom(;
                         player_angle,
                         player_radius,
                         ray_cast_outputs,
-                        goal_position,
+                        goal_tile,
                         rng,
                         reward,
                         goal_reward,
@@ -155,17 +155,17 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     tile_length = env.tile_length
     rng = env.rng
     player_radius = env.player_radius
-    goal_position = env.goal_position
+    goal_tile = env.goal_tile
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
     semi_field_of_view_wu = env.semi_field_of_view_wu
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
 
-    tile_map[GOAL, goal_position] = false
+    tile_map[GOAL, goal_tile] = false
 
-    new_goal_position = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
-    env.goal_position = new_goal_position
-    tile_map[GOAL, new_goal_position] = true
+    new_goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
+    env.goal_tile = new_goal_tile
+    tile_map[GOAL, new_goal_tile] = true
 
     new_player_tile = RCW.sample_empty_position(rng, tile_map)
     new_player_position = CartesianIndex(RC.get_tile_end(new_player_tile[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(new_player_tile[2], tile_length) - tile_length ÷ 2)
