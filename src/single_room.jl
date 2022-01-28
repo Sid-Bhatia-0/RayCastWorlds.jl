@@ -20,9 +20,9 @@ const NUM_VIEWS = 2
 const CAMERA_VIEW = 1
 const TOP_VIEW = 2
 
-function get_player_direction(player_angle, num_angles, player_radius_wu)
+function get_player_direction(player_angle, num_angles, player_radius)
     theta_wu = player_angle * 2 * pi / num_angles
-    return CartesianIndex(round(Int, player_radius_wu * cos(theta_wu)), round(Int, player_radius_wu * sin(theta_wu)))
+    return CartesianIndex(round(Int, player_radius * cos(theta_wu)), round(Int, player_radius * sin(theta_wu)))
 end
 
 mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
@@ -31,7 +31,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     num_angles::Int
     player_position::CartesianIndex{2}
     player_angle::Int
-    player_radius_wu::Int
+    player_radius::Int
     ray_cast_outputs::Vector{Tuple{T, T, Int, Int, Int, Int, Int}}
     goal_position::CartesianIndex{2}
     rng::RNG
@@ -62,7 +62,7 @@ function SingleRoom(;
         height_tile_map_tu = 8,
         width_tile_map_tu = 16,
         num_angles = 64,
-        player_radius_wu = 32,
+        player_radius = 32,
         rng = Random.GLOBAL_RNG,
         R = Float32,
         semi_field_of_view_wu = 2//3,
@@ -118,7 +118,7 @@ function SingleRoom(;
                         num_angles,
                         player_position,
                         player_angle,
-                        player_radius_wu,
+                        player_radius,
                         ray_cast_outputs,
                         goal_position,
                         rng,
@@ -154,7 +154,7 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     tile_map = env.tile_map
     tile_length = env.tile_length
     rng = env.rng
-    player_radius_wu = env.player_radius_wu
+    player_radius = env.player_radius
     goal_position = env.goal_position
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
@@ -177,7 +177,7 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     env.reward = zero(env.reward)
     env.done = false
 
-    new_player_direction_wu = get_player_direction(new_player_angle, num_angles, player_radius_wu)
+    new_player_direction_wu = get_player_direction(new_player_angle, num_angles, player_radius)
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
     RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction_wu[1], new_player_direction_wu[2], semi_field_of_view_wu, 1024, RC.FLOAT_DIVISION)
 
@@ -194,7 +194,7 @@ function RCW.act!(env::SingleRoom, action)
     tile_length = env.tile_length
     player_angle = env.player_angle
     player_position = env.player_position
-    player_radius_wu = env.player_radius_wu
+    player_radius = env.player_radius
     num_angles = env.num_angles
     num_rays = env.num_rays
     goal_map = @view tile_map[GOAL, :, :]
@@ -204,7 +204,7 @@ function RCW.act!(env::SingleRoom, action)
     semi_field_of_view_wu = env.semi_field_of_view_wu
 
     if action in Base.OneTo(2)
-        player_direction_wu = get_player_direction(player_angle, num_angles, player_radius_wu)
+        player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
         wall_map = @view tile_map[WALL, :, :]
 
         if action == 1
@@ -213,8 +213,8 @@ function RCW.act!(env::SingleRoom, action)
             new_player_position = RCW.move_backward(player_position, player_direction_wu)
         end
 
-        is_colliding_with_goal = RCW.is_player_colliding(goal_map, tile_length, new_player_position, player_radius_wu)
-        is_colliding_with_wall = RCW.is_player_colliding(wall_map, tile_length, new_player_position, player_radius_wu)
+        is_colliding_with_goal = RCW.is_player_colliding(goal_map, tile_length, new_player_position, player_radius)
+        is_colliding_with_wall = RCW.is_player_colliding(wall_map, tile_length, new_player_position, player_radius)
 
         if is_colliding_with_goal || is_colliding_with_wall
             if is_colliding_with_goal
@@ -244,7 +244,7 @@ function RCW.act!(env::SingleRoom, action)
     x_ray_start = env.player_position[1]
     y_ray_start = env.player_position[2]
 
-    player_direction_wu = get_player_direction(env.player_angle, num_angles, player_radius_wu)
+    player_direction_wu = get_player_direction(env.player_angle, num_angles, player_radius)
     x_ray_direction = player_direction_wu[1]
     y_ray_direction = player_direction_wu[2]
 
@@ -308,7 +308,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     tile_length = env.tile_length
     player_angle = env.player_angle
     player_position = env.player_position
-    player_radius_wu = env.player_radius_wu
+    player_radius = env.player_radius
     num_rays = env.num_rays
     num_angles = env.num_angles
     semi_field_of_view_wu = env.semi_field_of_view_wu
@@ -317,7 +317,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
     height_camera_view_pu, width_camera_view_pu = size(camera_view)
 
-    player_direction_wu = get_player_direction(player_angle, num_angles, player_radius_wu)
+    player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
     for i in 1:num_rays
         x_ray_stop, y_ray_stop, i_ray_hit_tile, j_ray_hit_tile, hit_dimension, x_ray_direction, y_ray_direction = ray_cast_outputs[i]
 
@@ -374,7 +374,7 @@ function RCW.update_top_view!(env::SingleRoom)
     player_position = env.player_position
     num_rays = env.num_rays
     num_angles = env.num_angles
-    player_radius_wu = env.player_radius_wu
+    player_radius = env.player_radius
     ray_cast_outputs = env.ray_cast_outputs
 
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
@@ -385,7 +385,7 @@ function RCW.update_top_view!(env::SingleRoom)
     wu_per_pu = tile_length ÷ pu_per_tu
     i_player_position_pu = RCW.wu_to_pu(player_position[1], wu_per_pu)
     j_player_position_pu = RCW.wu_to_pu(player_position[2], wu_per_pu)
-    player_radius_pixel_units = RCW.wu_to_pu(player_radius_wu, wu_per_pu)
+    player_radius_pixel_units = RCW.wu_to_pu(player_radius, wu_per_pu)
 
     draw_tile_map!(top_view, tile_map, tile_map_colors)
 
