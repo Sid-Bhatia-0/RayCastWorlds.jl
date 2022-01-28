@@ -385,7 +385,7 @@ function RCW.update_top_view!(env::SingleRoom)
     wu_per_pu = tile_length ÷ pu_per_tu
     i_player_position_pu = RCW.wu_to_pu(player_position[1], wu_per_pu)
     j_player_position_pu = RCW.wu_to_pu(player_position[2], wu_per_pu)
-    player_radius_pu = RCW.wu_to_pu(player_radius_wu, wu_per_pu)
+    player_radius_pixel_units = RCW.wu_to_pu(player_radius_wu, wu_per_pu)
 
     draw_tile_map!(top_view, tile_map, tile_map_colors)
 
@@ -397,7 +397,7 @@ function RCW.update_top_view!(env::SingleRoom)
         SD.draw!(top_view, SD.Line(SD.Point(i_player_position_pu, j_player_position_pu), SD.Point(i_ray_stop_pu, j_ray_stop_pu)), ray_color)
     end
 
-    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pu, j_player_position_pu - player_radius_pu), 2 * player_radius_pu), player_color)
+    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pixel_units, j_player_position_pu - player_radius_pixel_units), 2 * player_radius_pixel_units), player_color)
 
     return nothing
 end
