@@ -85,8 +85,8 @@ function SingleRoom(;
     goal_position = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
     tile_map[GOAL, goal_position] = true
 
-    player_position_tu = RCW.sample_empty_position(rng, tile_map)
-    player_position_wu = CartesianIndex(RC.get_tile_end(player_position_tu[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(player_position_tu[2], tile_length) - tile_length ÷ 2)
+    player_tile = RCW.sample_empty_position(rng, tile_map)
+    player_position_wu = CartesianIndex(RC.get_tile_end(player_tile[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(player_tile[2], tile_length) - tile_length ÷ 2)
 
     player_direction_au = rand(rng, 0 : num_directions - 1)
 
@@ -167,8 +167,8 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     env.goal_position = new_goal_position
     tile_map[GOAL, new_goal_position] = true
 
-    new_player_position_tu = RCW.sample_empty_position(rng, tile_map)
-    new_player_position_wu = CartesianIndex(RC.get_tile_end(new_player_position_tu[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(new_player_position_tu[2], tile_length) - tile_length ÷ 2)
+    new_player_tile = RCW.sample_empty_position(rng, tile_map)
+    new_player_position_wu = CartesianIndex(RC.get_tile_end(new_player_tile[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(new_player_tile[2], tile_length) - tile_length ÷ 2)
     env.player_position_wu = new_player_position_wu
 
     new_player_direction_au = rand(rng, 0 : num_directions - 1)
