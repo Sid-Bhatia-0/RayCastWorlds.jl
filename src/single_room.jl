@@ -53,7 +53,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     goal_dim_1_color::C
     goal_dim_2_color::C
     camera_height_tile_wu::T
-    height_camera_view_pu::Int
+    height_camera_view::Int
 end
 
 function SingleRoom(;
@@ -70,7 +70,7 @@ function SingleRoom(;
         pu_per_tu = 32,
         # camera_height_tile_wu = convert(T, 1),
         camera_height_tile_wu = convert(T, 256),
-        height_camera_view_pu = 256,
+        height_camera_view = 256,
     )
 
     @assert iseven(tile_length)
@@ -108,7 +108,7 @@ function SingleRoom(;
     goal_dim_1_color = 0x00800000
     goal_dim_2_color = 0x00c00000
 
-    camera_view = Array{C}(undef, height_camera_view_pu, num_rays)
+    camera_view = Array{C}(undef, height_camera_view, num_rays)
 
     top_view = Array{C}(undef, height_tile_map_tu * pu_per_tu, width_tile_map_tu * pu_per_tu)
 
@@ -140,7 +140,7 @@ function SingleRoom(;
                         goal_dim_1_color,
                         goal_dim_2_color,
                         camera_height_tile_wu,
-                        height_camera_view_pu,
+                        height_camera_view,
                         )
 
     RCW.reset!(env)
@@ -315,7 +315,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     ray_cast_outputs = env.ray_cast_outputs
 
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
-    height_camera_view_pu, width_camera_view_pu = size(camera_view)
+    height_camera_view, width_camera_view_pu = size(camera_view)
 
     player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
     for i in 1:num_rays
@@ -329,7 +329,7 @@ function RCW.update_camera_view!(env::SingleRoom)
         if isfinite(height_line)
             height_line_pu = floor(Int, height_line)
         else
-            height_line_pu = height_camera_view_pu
+            height_line_pu = height_camera_view
         end
 
         ray_stop_position_i_tu = i_ray_hit_tile
@@ -349,10 +349,10 @@ function RCW.update_camera_view!(env::SingleRoom)
             end
         end
 
-        if height_line_pu >= height_camera_view_pu - 1
+        if height_line_pu >= height_camera_view - 1
             camera_view[:, i] .= color
         else
-            padding_pu = (height_camera_view_pu - height_line_pu) ÷ 2
+            padding_pu = (height_camera_view - height_line_pu) ÷ 2
             camera_view[1:padding_pu, i] .= ceiling_color
             camera_view[padding_pu + 1 : end - padding_pu, i] .= color
             camera_view[end - padding_pu + 1 : end, i] .= floor_color
@@ -417,9 +417,9 @@ function RCW.play!(game::SingleRoom)
     wall_dim_2_color = game.wall_dim_2_color
 
     height_top_view_pu, width_top_view_pu = size(top_view)
-    height_camera_view_pu, width_camera_view_pu = size(camera_view)
+    height_camera_view, width_camera_view_pu = size(camera_view)
 
-    height_image = max(height_top_view_pu, height_camera_view_pu)
+    height_image = max(height_top_view_pu, height_camera_view)
     width_image = max(width_top_view_pu, width_camera_view_pu)
 
     frame_buffer = zeros(UInt32, width_image, height_image)
