@@ -38,7 +38,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     reward::R
     goal_reward::R
     done::Bool
-    semi_field_of_view_wu::Rational{Int}
+    semi_field_of_view_ratio::Rational{Int}
     num_rays::Int
 
     top_view::Array{C, 2}
@@ -65,7 +65,7 @@ function SingleRoom(;
         player_radius = 32,
         rng = Random.GLOBAL_RNG,
         R = Float32,
-        semi_field_of_view_wu = 2//3,
+        semi_field_of_view_ratio = 2//3,
         num_rays = 512,
         pu_per_tu = 32,
         # camera_height_tile_wu = convert(T, 1),
@@ -125,7 +125,7 @@ function SingleRoom(;
                         reward,
                         goal_reward,
                         done,
-                        semi_field_of_view_wu,
+                        semi_field_of_view_ratio,
                         num_rays,
 
                         top_view,
@@ -158,7 +158,7 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     goal_tile = env.goal_tile
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
-    semi_field_of_view_wu = env.semi_field_of_view_wu
+    semi_field_of_view_ratio = env.semi_field_of_view_ratio
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
 
     tile_map[GOAL, goal_tile] = false
@@ -179,7 +179,7 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
 
     new_player_direction_wu = get_player_direction(new_player_angle, num_angles, player_radius)
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
-    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction_wu[1], new_player_direction_wu[2], semi_field_of_view_wu, 1024, RC.FLOAT_DIVISION)
+    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction_wu[1], new_player_direction_wu[2], semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
 
     RCW.update_top_view!(env)
     RCW.update_camera_view!(env)
@@ -201,7 +201,7 @@ function RCW.act!(env::SingleRoom, action)
 
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
-    semi_field_of_view_wu = env.semi_field_of_view_wu
+    semi_field_of_view_ratio = env.semi_field_of_view_ratio
 
     if action in Base.OneTo(2)
         player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
@@ -249,7 +249,7 @@ function RCW.act!(env::SingleRoom, action)
     y_ray_direction = player_direction_wu[2]
 
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
-    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, x_ray_start, y_ray_start, x_ray_direction, y_ray_direction, semi_field_of_view_wu, 1024, RC.FLOAT_DIVISION)
+    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, x_ray_start, y_ray_start, x_ray_direction, y_ray_direction, semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
     RCW.update_top_view!(env)
     RCW.update_camera_view!(env)
 
@@ -311,7 +311,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     player_radius = env.player_radius
     num_rays = env.num_rays
     num_angles = env.num_angles
-    semi_field_of_view_wu = env.semi_field_of_view_wu
+    semi_field_of_view_ratio = env.semi_field_of_view_ratio
     ray_cast_outputs = env.ray_cast_outputs
 
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
@@ -324,7 +324,7 @@ function RCW.update_camera_view!(env::SingleRoom)
         ray_distance_wu = hypot(x_ray_stop - player_position[1], y_ray_stop - player_position[2])
         normalized_projected_distance_wu = ray_distance_wu * get_normalized_dot_product(player_direction_wu[1], player_direction_wu[2], x_ray_direction, y_ray_direction)
 
-        height_line = camera_height_tile_wu * num_rays / (2 * semi_field_of_view_wu * normalized_projected_distance_wu)
+        height_line = camera_height_tile_wu * num_rays / (2 * semi_field_of_view_ratio * normalized_projected_distance_wu)
 
         if isfinite(height_line)
             height_line_pu = floor(Int, height_line)
