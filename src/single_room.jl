@@ -52,7 +52,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     wall_dim_2_color::C
     goal_dim_1_color::C
     goal_dim_2_color::C
-    camera_height_tile_wu::T
+    tile_aspect_ratio_camera_view::Rational{Int}
     height_camera_view::Int
 end
 
@@ -68,8 +68,7 @@ function SingleRoom(;
         semi_field_of_view_ratio = 2//3,
         num_rays = 512,
         pu_per_tu = 32,
-        # camera_height_tile_wu = convert(T, 1),
-        camera_height_tile_wu = convert(T, 256),
+        tile_aspect_ratio_camera_view = 1//1,
         height_camera_view = 256,
     )
 
@@ -139,7 +138,7 @@ function SingleRoom(;
                         wall_dim_2_color,
                         goal_dim_1_color,
                         goal_dim_2_color,
-                        camera_height_tile_wu,
+                        tile_aspect_ratio_camera_view,
                         height_camera_view,
                         )
 
@@ -302,7 +301,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     wall_dim_2_color = env.wall_dim_2_color
     goal_dim_1_color = env.goal_dim_1_color
     goal_dim_2_color = env.goal_dim_2_color
-    camera_height_tile_wu = env.camera_height_tile_wu
+    tile_aspect_ratio_camera_view = env.tile_aspect_ratio_camera_view
 
     tile_map = env.tile_map
     tile_length = env.tile_length
@@ -324,7 +323,7 @@ function RCW.update_camera_view!(env::SingleRoom)
         ray_distance_wu = hypot(x_ray_stop - player_position[1], y_ray_stop - player_position[2])
         normalized_projected_distance_wu = ray_distance_wu * get_normalized_dot_product(player_direction_wu[1], player_direction_wu[2], x_ray_direction, y_ray_direction)
 
-        height_line = camera_height_tile_wu * num_rays / (2 * semi_field_of_view_ratio * normalized_projected_distance_wu)
+        height_line = tile_aspect_ratio_camera_view * tile_length * num_rays / (2 * semi_field_of_view_ratio * normalized_projected_distance_wu)
 
         if isfinite(height_line)
             height_line_pu = floor(Int, height_line)
