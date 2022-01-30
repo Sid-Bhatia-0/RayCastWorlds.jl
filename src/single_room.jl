@@ -44,9 +44,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     top_view::Array{C, 2}
     camera_view::Array{C, 2}
     colors_top_view::NamedTuple{(:wall, :goal, :empty, :ray, :player, :border), NTuple{NUM_OBJECTS + 4, C}}
-    floor_color::C
-    ceiling_color::C
-    object_colors_camera_view::NTuple{NUM_OBJECTS, Tuple{UInt32, UInt32}}
+    colors_camera_view::NamedTuple{(:wall1, :wall2, :goal1, :goal2, :floor, :ceiling), NTuple{2 * NUM_OBJECTS + 2, C}}
     tile_aspect_ratio_camera_view::Rational{Int}
     height_camera_view::Int
 end
@@ -66,7 +64,7 @@ function SingleRoom(;
         tile_aspect_ratio_camera_view = 1//1,
         height_camera_view = 256,
         colors_top_view = (wall = 0x00FFFFFF, goal = 0x00FF0000, empty = 0x00000000, ray = 0x00808080, player = 0x00c0c0c0, border = 0x00cccccc),
-        object_colors_camera_view = ((0x00808080, 0x00c0c0c0), (0x00800000, 0x00c00000))
+        colors_camera_view = (wall1 = 0x00808080, wall2 = 0x00c0c0c0, goal1 = 0x00800000, goal2 = 0x00c00000, floor = 0x00404040, ceiling = 0x00FFFFFF),
     )
 
     @assert iseven(tile_length)
@@ -94,9 +92,6 @@ function SingleRoom(;
 
     C = UInt32
 
-    floor_color = 0x00404040
-    ceiling_color = 0x00FFFFFF
-
     camera_view = Array{C}(undef, height_camera_view, num_rays)
 
     top_view = Array{C}(undef, height_tile_map_tu * pu_per_tu, width_tile_map_tu * pu_per_tu)
@@ -120,9 +115,7 @@ function SingleRoom(;
                         top_view,
                         camera_view,
                         colors_top_view,
-                        floor_color,
-                        ceiling_color,
-                        object_colors_camera_view,
+                        colors_camera_view,
                         tile_aspect_ratio_camera_view,
                         height_camera_view,
                         )
@@ -281,8 +274,6 @@ get_normalized_dot_product(x1, y1, x2, y2) = (x1 * x2 + y1 * y2) / (hypot(x1, y1
 
 function RCW.update_camera_view!(env::SingleRoom)
     camera_view = env.camera_view
-    floor_color = env.floor_color
-    ceiling_color = env.ceiling_color
     tile_aspect_ratio_camera_view = env.tile_aspect_ratio_camera_view
 
     tile_map = env.tile_map
@@ -294,7 +285,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     num_angles = env.num_angles
     semi_field_of_view_ratio = env.semi_field_of_view_ratio
     ray_cast_outputs = env.ray_cast_outputs
-    object_colors_camera_view = env.object_colors_camera_view
+    colors_camera_view = env.colors_camera_view
 
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
     height_camera_view, width_camera_view_pu = size(camera_view)
@@ -314,24 +305,20 @@ function RCW.update_camera_view!(env::SingleRoom)
             height_line_pu = height_camera_view
         end
 
-        ray_stop_position_i_tu = i_ray_hit_tile
-        ray_stop_position_j_tu = j_ray_hit_tile
-
-        if tile_map[WALL, ray_stop_position_i_tu, ray_stop_position_j_tu]
-            color = object_colors_camera_view[WALL][hit_dimension]
-        elseif tile_map[GOAL, ray_stop_position_i_tu, ray_stop_position_j_tu]
-            color = object_colors_camera_view[GOAL][hit_dimension]
+        object = findfirst(@view tile_map[:, i_ray_hit_tile, j_ray_hit_tile])
+        if isnothing(object)
+            color = colors_camera_view[:ceiling]
         else
-            color = ceiling_color
+            color = colors_camera_view[2 * (object - 1) + hit_dimension]
         end
 
         if height_line_pu >= height_camera_view - 1
             camera_view[:, i] .= color
         else
             padding_pu = (height_camera_view - height_line_pu) ÷ 2
-            camera_view[1:padding_pu, i] .= ceiling_color
+            camera_view[1:padding_pu, i] .= colors_camera_view[:ceiling]
             camera_view[padding_pu + 1 : end - padding_pu, i] .= color
-            camera_view[end - padding_pu + 1 : end, i] .= floor_color
+            camera_view[end - padding_pu + 1 : end, i] .= colors_camera_view[:floor]
         end
     end
 
@@ -383,8 +370,7 @@ function RCW.play!(game::SingleRoom)
     top_view = game.top_view
     camera_view = game.camera_view
     colors_top_view = game.colors_top_view
-    floor_color = game.floor_color
-    ceiling_color = game.ceiling_color
+    colors_camera_view = game.colors_camera_view
 
     height_top_view_pu, width_top_view_pu = size(top_view)
     height_camera_view, width_camera_view_pu = size(camera_view)
