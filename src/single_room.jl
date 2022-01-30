@@ -67,6 +67,7 @@ function SingleRoom(;
         pu_per_tu = 32,
         tile_aspect_ratio_camera_view = 1//1,
         height_camera_view = 256,
+        tile_map_colors = (0x00FFFFFF, 0x00FF0000, 0x00000000),
         object_colors_camera_view = ((0x00808080, 0x00c0c0c0), (0x00800000, 0x00c00000))
     )
 
@@ -95,7 +96,6 @@ function SingleRoom(;
 
     C = UInt32
 
-    tile_map_colors = (0x00FFFFFF, 0x00FF0000, 0x00000000)
     ray_color = 0x00808080
     player_color = 0x00c0c0c0
     floor_color = 0x00404040
