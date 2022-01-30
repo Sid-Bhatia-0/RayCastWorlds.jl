@@ -43,8 +43,8 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
 
     top_view::Array{C, 2}
     camera_view::Array{C, 2}
-    colors_top_view::NamedTuple{(:wall, :goal, :empty, :ray, :player, :border), NTuple{NUM_OBJECTS + 4, C}}
-    colors_camera_view::NamedTuple{(:wall1, :wall2, :goal1, :goal2, :floor, :ceiling), NTuple{2 * NUM_OBJECTS + 2, C}}
+    top_view_colors::NamedTuple{(:wall, :goal, :empty, :ray, :player, :border), NTuple{NUM_OBJECTS + 4, C}}
+    camera_view_colors::NamedTuple{(:wall1, :wall2, :goal1, :goal2, :floor, :ceiling), NTuple{2 * NUM_OBJECTS + 2, C}}
     tile_aspect_ratio_camera_view::Rational{Int}
     height_camera_view::Int
 end
@@ -63,8 +63,8 @@ function SingleRoom(;
         pu_per_tu = 32,
         tile_aspect_ratio_camera_view = 1//1,
         height_camera_view = 256,
-        colors_top_view = (wall = 0x00FFFFFF, goal = 0x00FF0000, empty = 0x00000000, ray = 0x00808080, player = 0x00c0c0c0, border = 0x00cccccc),
-        colors_camera_view = (wall1 = 0x00808080, wall2 = 0x00c0c0c0, goal1 = 0x00800000, goal2 = 0x00c00000, floor = 0x00404040, ceiling = 0x00FFFFFF),
+        top_view_colors = (wall = 0x00FFFFFF, goal = 0x00FF0000, empty = 0x00000000, ray = 0x00808080, player = 0x00c0c0c0, border = 0x00cccccc),
+        camera_view_colors = (wall1 = 0x00808080, wall2 = 0x00c0c0c0, goal1 = 0x00800000, goal2 = 0x00c00000, floor = 0x00404040, ceiling = 0x00FFFFFF),
     )
 
     @assert iseven(tile_length)
@@ -114,8 +114,8 @@ function SingleRoom(;
 
                         top_view,
                         camera_view,
-                        colors_top_view,
-                        colors_camera_view,
+                        top_view_colors,
+                        camera_view_colors,
                         tile_aspect_ratio_camera_view,
                         height_camera_view,
                         )
@@ -285,7 +285,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     num_angles = env.num_angles
     semi_field_of_view_ratio = env.semi_field_of_view_ratio
     ray_cast_outputs = env.ray_cast_outputs
-    colors_camera_view = env.colors_camera_view
+    camera_view_colors = env.camera_view_colors
 
     _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
     height_camera_view, width_camera_view_pu = size(camera_view)
@@ -307,18 +307,18 @@ function RCW.update_camera_view!(env::SingleRoom)
 
         object = findfirst(@view tile_map[:, i_ray_hit_tile, j_ray_hit_tile])
         if isnothing(object)
-            color = colors_camera_view[:ceiling]
+            color = camera_view_colors[:ceiling]
         else
-            color = colors_camera_view[2 * (object - 1) + hit_dimension]
+            color = camera_view_colors[2 * (object - 1) + hit_dimension]
         end
 
         if height_line_pu >= height_camera_view - 1
             camera_view[:, i] .= color
         else
             padding_pu = (height_camera_view - height_line_pu) ÷ 2
-            camera_view[1:padding_pu, i] .= colors_camera_view[:ceiling]
+            camera_view[1:padding_pu, i] .= camera_view_colors[:ceiling]
             camera_view[padding_pu + 1 : end - padding_pu, i] .= color
-            camera_view[end - padding_pu + 1 : end, i] .= colors_camera_view[:floor]
+            camera_view[end - padding_pu + 1 : end, i] .= camera_view_colors[:floor]
         end
     end
 
@@ -327,7 +327,7 @@ end
 
 function RCW.update_top_view!(env::SingleRoom)
     top_view = env.top_view
-    colors_top_view = env.colors_top_view
+    top_view_colors = env.top_view_colors
 
     tile_map = env.tile_map
     tile_length = env.tile_length
@@ -348,17 +348,17 @@ function RCW.update_top_view!(env::SingleRoom)
     j_player_position_pu = RCW.wu_to_pu(player_position[2], wu_per_pu)
     player_radius_pixel_units = RCW.wu_to_pu(player_radius, wu_per_pu)
 
-    draw_tile_map!(top_view, tile_map, colors_top_view)
+    draw_tile_map!(top_view, tile_map, top_view_colors)
 
     for i in 1:num_rays
         x_ray_stop, y_ray_stop, i_ray_hit_tile, j_ray_hit_tile, hit_dimension, _, _ = ray_cast_outputs[i]
         i_ray_stop_pu = RCW.wu_to_pu(x_ray_stop, wu_per_pu)
         j_ray_stop_pu = RCW.wu_to_pu(y_ray_stop, wu_per_pu)
 
-        SD.draw!(top_view, SD.Line(SD.Point(i_player_position_pu, j_player_position_pu), SD.Point(i_ray_stop_pu, j_ray_stop_pu)), colors_top_view[:ray])
+        SD.draw!(top_view, SD.Line(SD.Point(i_player_position_pu, j_player_position_pu), SD.Point(i_ray_stop_pu, j_ray_stop_pu)), top_view_colors[:ray])
     end
 
-    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pixel_units, j_player_position_pu - player_radius_pixel_units), 2 * player_radius_pixel_units), colors_top_view[:player])
+    SD.draw!(top_view, SD.Circle(SD.Point(i_player_position_pu - player_radius_pixel_units, j_player_position_pu - player_radius_pixel_units), 2 * player_radius_pixel_units), top_view_colors[:player])
 
     return nothing
 end
@@ -369,8 +369,8 @@ RCW.get_action_names(env::SingleRoom) = (:MOVE_FORWARD, :MOVE_BACKWARD, :TURN_LE
 function RCW.play!(game::SingleRoom)
     top_view = game.top_view
     camera_view = game.camera_view
-    colors_top_view = game.colors_top_view
-    colors_camera_view = game.colors_camera_view
+    top_view_colors = game.top_view_colors
+    camera_view_colors = game.camera_view_colors
 
     height_top_view_pu, width_top_view_pu = size(top_view)
     height_camera_view, width_camera_view_pu = size(camera_view)
