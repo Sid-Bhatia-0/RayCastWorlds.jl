@@ -26,27 +26,35 @@ function get_player_direction(player_angle, num_angles, player_radius)
 end
 
 mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
+    # tile_map
     tile_map::BitArray{3}
+    goal_tile::CartesianIndex{2}
+
+    # navigation and ray casting
     tile_length::Int
-    num_angles::Int
     player_position::CartesianIndex{2}
+    num_angles::Int
     player_angle::Int
     player_radius::Int
+    num_rays::Int
+    semi_field_of_view_ratio::Rational{Int}
     ray_cast_outputs::Vector{Tuple{T, T, Int, Int, Int, Int, Int}}
-    goal_tile::CartesianIndex{2}
-    rng::RNG
+
+    # camera_view
+    height_camera_view::Int
+    camera_view::Array{C, 2}
+    camera_view_colors::NamedTuple{(:wall1, :wall2, :goal1, :goal2, :floor, :ceiling), NTuple{2 * NUM_OBJECTS + 2, C}}
+    tile_aspect_ratio_camera_view::Rational{Int}
+
+    # top_view
+    top_view::Array{C, 2}
+    top_view_colors::NamedTuple{(:wall, :goal, :empty, :ray, :player, :border), NTuple{NUM_OBJECTS + 4, C}}
+
+    # RL
     reward::R
     goal_reward::R
     done::Bool
-    semi_field_of_view_ratio::Rational{Int}
-    num_rays::Int
-
-    top_view::Array{C, 2}
-    camera_view::Array{C, 2}
-    top_view_colors::NamedTuple{(:wall, :goal, :empty, :ray, :player, :border), NTuple{NUM_OBJECTS + 4, C}}
-    camera_view_colors::NamedTuple{(:wall1, :wall2, :goal1, :goal2, :floor, :ceiling), NTuple{2 * NUM_OBJECTS + 2, C}}
-    tile_aspect_ratio_camera_view::Rational{Int}
-    height_camera_view::Int
+    rng::RNG
 end
 
 function SingleRoom(;
@@ -99,28 +107,31 @@ function SingleRoom(;
     top_view = Array{C}(undef, height_tile_map * pu_per_tu, width_tile_map * pu_per_tu)
 
     env = SingleRoom(
-                        tile_map,
-                        tile_length,
-                        num_angles,
-                        player_position,
-                        player_angle,
-                        player_radius,
-                        ray_cast_outputs,
-                        goal_tile,
-                        rng,
-                        reward,
-                        goal_reward,
-                        done,
-                        semi_field_of_view_ratio,
-                        num_rays,
+    tile_map,
+    goal_tile,
 
-                        top_view,
-                        camera_view,
-                        top_view_colors,
-                        camera_view_colors,
-                        tile_aspect_ratio_camera_view,
-                        height_camera_view,
-                        )
+    tile_length,
+    player_position,
+    num_angles,
+    player_angle,
+    player_radius,
+    num_rays,
+    semi_field_of_view_ratio,
+    ray_cast_outputs,
+
+    height_camera_view,
+    camera_view,
+    camera_view_colors,
+    tile_aspect_ratio_camera_view,
+
+    top_view,
+    top_view_colors,
+
+    reward,
+    goal_reward,
+    done,
+    rng,
+    )
 
     RCW.reset!(env)
     RCW.update_camera_view!(env)
