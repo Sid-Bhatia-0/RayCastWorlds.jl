@@ -25,7 +25,7 @@ function get_player_direction(player_angle, num_angles, player_radius)
     return CartesianIndex(round(Int, player_radius * cos(theta_wu)), round(Int, player_radius * sin(theta_wu)))
 end
 
-mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
+mutable struct SingleRoom{RNG, R, C} <: RCW.AbstractGame
     # tile_map
     tile_map::BitArray{3}
     goal_tile::CartesianIndex{2}
@@ -38,7 +38,7 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
     player_radius::Int
     num_rays::Int
     semi_field_of_view_ratio::Rational{Int}
-    ray_cast_outputs::Vector{Tuple{T, T, Int, Int, Int, Int, Int}}
+    ray_cast_outputs::Vector{Tuple{Float32, Float32, Int, Int, Int, Int, Int}}
 
     # camera_view
     height_camera_view::Int
@@ -58,7 +58,6 @@ mutable struct SingleRoom{T, RNG, R, C} <: RCW.AbstractGame
 end
 
 function SingleRoom(;
-        T = Float32,
         tile_length = 256,
         height_tile_map = 8,
         width_tile_map = 16,
@@ -94,7 +93,7 @@ function SingleRoom(;
 
     player_angle = rand(rng, 0 : num_angles - 1)
 
-    ray_cast_outputs = Array{Tuple{T, T, Int, Int, Int, Int, Int}}(undef, num_rays)
+    ray_cast_outputs = Array{Tuple{Float32, Float32, Int, Int, Int, Int, Int}}(undef, num_rays)
 
     C = typeof(camera_view_colors[1])
 
