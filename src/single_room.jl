@@ -164,9 +164,9 @@ function RCW.reset!(env::SingleRoom)
     new_player_angle = rand(rng, 0 : num_angles - 1)
     env.player_angle = new_player_angle
 
-    new_player_direction_wu = get_player_direction(new_player_angle, num_angles, player_radius)
+    new_player_direction = get_player_direction(new_player_angle, num_angles, player_radius)
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
-    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction_wu[1], new_player_direction_wu[2], semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
+    RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction[1], new_player_direction[2], semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
 
     env.reward = zero(env.reward)
     env.done = false
@@ -194,13 +194,13 @@ function RCW.act!(env::SingleRoom, action)
     semi_field_of_view_ratio = env.semi_field_of_view_ratio
 
     if action in Base.OneTo(2)
-        player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
+        player_direction = get_player_direction(player_angle, num_angles, player_radius)
         wall_map = @view tile_map[WALL, :, :]
 
         if action == 1
-            new_player_position = RCW.move_forward(player_position, player_direction_wu)
+            new_player_position = RCW.move_forward(player_position, player_direction)
         else
-            new_player_position = RCW.move_backward(player_position, player_direction_wu)
+            new_player_position = RCW.move_backward(player_position, player_direction)
         end
 
         is_colliding_with_goal = RCW.is_player_colliding(goal_map, tile_length, new_player_position, player_radius)
@@ -234,9 +234,9 @@ function RCW.act!(env::SingleRoom, action)
     x_ray_start = env.player_position[1]
     y_ray_start = env.player_position[2]
 
-    player_direction_wu = get_player_direction(env.player_angle, num_angles, player_radius)
-    x_ray_direction = player_direction_wu[1]
-    y_ray_direction = player_direction_wu[2]
+    player_direction = get_player_direction(env.player_angle, num_angles, player_radius)
+    x_ray_direction = player_direction[1]
+    y_ray_direction = player_direction[2]
 
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
     RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, x_ray_start, y_ray_start, x_ray_direction, y_ray_direction, semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
@@ -303,12 +303,12 @@ function RCW.update_camera_view!(env::SingleRoom)
     _, height_tile_map, width_tile_map = size(tile_map)
     height_camera_view, width_camera_view_pu = size(camera_view)
 
-    player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
+    player_direction = get_player_direction(player_angle, num_angles, player_radius)
     for i in 1:num_rays
         x_ray_stop, y_ray_stop, i_ray_hit_tile, j_ray_hit_tile, hit_dimension, x_ray_direction, y_ray_direction = ray_cast_outputs[i]
 
         ray_distance_wu = hypot(x_ray_stop - player_position[1], y_ray_stop - player_position[2])
-        normalized_projected_distance_wu = ray_distance_wu * get_normalized_dot_product(player_direction_wu[1], player_direction_wu[2], x_ray_direction, y_ray_direction)
+        normalized_projected_distance_wu = ray_distance_wu * get_normalized_dot_product(player_direction[1], player_direction[2], x_ray_direction, y_ray_direction)
 
         height_line = tile_aspect_ratio_camera_view * tile_length * num_rays / (2 * semi_field_of_view_ratio * normalized_projected_distance_wu)
 
