@@ -138,7 +138,7 @@ function SingleRoom(;
     return env
 end
 
-function RCW.reset!(env::SingleRoom{T}) where {T}
+function RCW.reset!(env::SingleRoom)
     tile_map = env.tile_map
     tile_length = env.tile_length
     rng = env.rng
