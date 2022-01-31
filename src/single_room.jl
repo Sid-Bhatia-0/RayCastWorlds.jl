@@ -65,7 +65,6 @@ function SingleRoom(;
         num_angles = 64,
         player_radius = 32,
         rng = Random.GLOBAL_RNG,
-        R = Float32,
         semi_field_of_view_ratio = 2//3,
         num_rays = 512,
         pu_per_tu = 32,
@@ -73,6 +72,7 @@ function SingleRoom(;
         height_camera_view = 256,
         top_view_colors = (wall = 0x00FFFFFF, goal = 0x00FF0000, empty = 0x00000000, ray = 0x00808080, player = 0x00c0c0c0, border = 0x00cccccc),
         camera_view_colors = (wall1 = 0x00808080, wall2 = 0x00c0c0c0, goal1 = 0x00800000, goal2 = 0x00c00000, floor = 0x00404040, ceiling = 0x00FFFFFF),
+        goal_reward = 1.0f0,
     )
 
     @assert iseven(tile_length)
@@ -96,8 +96,7 @@ function SingleRoom(;
 
     ray_cast_outputs = Array{Tuple{T, T, Int, Int, Int, Int, Int}}(undef, num_rays)
 
-    reward = zero(R)
-    goal_reward = one(R)
+    reward = zero(goal_reward)
     done = false
 
     C = typeof(camera_view_colors[1])
