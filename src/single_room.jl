@@ -147,7 +147,8 @@ function RCW.reset!(env::SingleRoom)
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
     semi_field_of_view_ratio = env.semi_field_of_view_ratio
-    _, height_tile_map, width_tile_map = size(tile_map)
+    height_tile_map = size(tile_map, 2)
+    width_tile_map = size(tile_map, 3)
 
     tile_map[GOAL, goal_tile] = false
 
@@ -155,19 +156,20 @@ function RCW.reset!(env::SingleRoom)
     env.goal_tile = new_goal_tile
     tile_map[GOAL, new_goal_tile] = true
 
+    half_tile_length = tile_length ÷ 2
     new_player_tile = RCW.sample_empty_position(rng, tile_map)
-    new_player_position = CartesianIndex(RC.get_tile_end(new_player_tile[1], tile_length) - tile_length ÷ 2, RC.get_tile_end(new_player_tile[2], tile_length) - tile_length ÷ 2)
+    new_player_position = CartesianIndex(RC.get_tile_end(new_player_tile[1], tile_length) - half_tile_length, RC.get_tile_end(new_player_tile[2], tile_length) - half_tile_length)
     env.player_position = new_player_position
 
     new_player_angle = rand(rng, 0 : num_angles - 1)
     env.player_angle = new_player_angle
 
-    env.reward = zero(env.reward)
-    env.done = false
-
     new_player_direction_wu = get_player_direction(new_player_angle, num_angles, player_radius)
     obstacle_tile_map = @view any(tile_map, dims = 1)[1, :, :]
     RC.cast_rays!(ray_cast_outputs, obstacle_tile_map, tile_length, new_player_position[1], new_player_position[2], new_player_direction_wu[1], new_player_direction_wu[2], semi_field_of_view_ratio, 1024, RC.FLOAT_DIVISION)
+
+    env.reward = zero(env.reward)
+    env.done = false
 
     RCW.update_top_view!(env)
     RCW.update_camera_view!(env)
