@@ -92,7 +92,7 @@ function SingleRoom(;
     goal_reward = one(R)
     done = false
 
-    C = UInt32
+    C = typeof(camera_view_colors[1])
 
     camera_view = Array{C}(undef, height_camera_view, num_rays)
 
