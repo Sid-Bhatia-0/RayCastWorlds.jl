@@ -96,14 +96,14 @@ function SingleRoom(;
 
     ray_cast_outputs = Array{Tuple{T, T, Int, Int, Int, Int, Int}}(undef, num_rays)
 
-    reward = zero(goal_reward)
-    done = false
-
     C = typeof(camera_view_colors[1])
 
     camera_view = Array{C}(undef, height_camera_view, num_rays)
 
     top_view = Array{C}(undef, height_tile_map * pu_per_tu, width_tile_map * pu_per_tu)
+
+    reward = zero(goal_reward)
+    done = false
 
     env = SingleRoom(
     tile_map,
