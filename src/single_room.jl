@@ -68,6 +68,8 @@ function SingleRoom(;
     )
 
     @assert iseven(tile_length)
+    @assert height_tile_map >= 4
+    @assert width_tile_map >= 4
 
     tile_map = falses(NUM_OBJECTS, height_tile_map, width_tile_map)
 
