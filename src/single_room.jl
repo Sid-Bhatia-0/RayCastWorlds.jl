@@ -52,8 +52,8 @@ end
 function SingleRoom(;
         T = Float32,
         tile_length = 256,
-        height_tile_map_tu = 8,
-        width_tile_map_tu = 16,
+        height_tile_map = 8,
+        width_tile_map = 16,
         num_angles = 64,
         player_radius = 32,
         rng = Random.GLOBAL_RNG,
@@ -69,14 +69,14 @@ function SingleRoom(;
 
     @assert iseven(tile_length)
 
-    tile_map = falses(NUM_OBJECTS, height_tile_map_tu, width_tile_map_tu)
+    tile_map = falses(NUM_OBJECTS, height_tile_map, width_tile_map)
 
     tile_map[WALL, :, 1] .= true
-    tile_map[WALL, :, width_tile_map_tu] .= true
+    tile_map[WALL, :, width_tile_map] .= true
     tile_map[WALL, 1, :] .= true
-    tile_map[WALL, height_tile_map_tu, :] .= true
+    tile_map[WALL, height_tile_map, :] .= true
 
-    goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
+    goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map - 1), rand(rng, 2 : width_tile_map - 1))
     tile_map[GOAL, goal_tile] = true
 
     player_tile = RCW.sample_empty_position(rng, tile_map)
@@ -94,7 +94,7 @@ function SingleRoom(;
 
     camera_view = Array{C}(undef, height_camera_view, num_rays)
 
-    top_view = Array{C}(undef, height_tile_map_tu * pu_per_tu, width_tile_map_tu * pu_per_tu)
+    top_view = Array{C}(undef, height_tile_map * pu_per_tu, width_tile_map * pu_per_tu)
 
     env = SingleRoom(
                         tile_map,
@@ -136,11 +136,11 @@ function RCW.reset!(env::SingleRoom{T}) where {T}
     num_angles = env.num_angles
     ray_cast_outputs = env.ray_cast_outputs
     semi_field_of_view_ratio = env.semi_field_of_view_ratio
-    _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
+    _, height_tile_map, width_tile_map = size(tile_map)
 
     tile_map[GOAL, goal_tile] = false
 
-    new_goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map_tu - 1), rand(rng, 2 : width_tile_map_tu - 1))
+    new_goal_tile = CartesianIndex(rand(rng, 2 : height_tile_map - 1), rand(rng, 2 : width_tile_map - 1))
     env.goal_tile = new_goal_tile
     tile_map[GOAL, new_goal_tile] = true
 
@@ -238,13 +238,13 @@ end
 #####
 
 function draw_tile_map!(top_view, tile_map, colors)
-    _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
+    _, height_tile_map, width_tile_map = size(tile_map)
     height_top_view_pu, width_top_view_pu = size(top_view)
 
-    pu_per_tu = height_top_view_pu ÷ height_tile_map_tu
+    pu_per_tu = height_top_view_pu ÷ height_tile_map
 
-    for j in 1:width_tile_map_tu
-        for i in 1:height_tile_map_tu
+    for j in 1:width_tile_map
+        for i in 1:height_tile_map
             i_top_left = (i - 1) * pu_per_tu + 1
             j_top_left = (j - 1) * pu_per_tu + 1
 
@@ -287,7 +287,7 @@ function RCW.update_camera_view!(env::SingleRoom)
     ray_cast_outputs = env.ray_cast_outputs
     camera_view_colors = env.camera_view_colors
 
-    _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
+    _, height_tile_map, width_tile_map = size(tile_map)
     height_camera_view, width_camera_view_pu = size(camera_view)
 
     player_direction_wu = get_player_direction(player_angle, num_angles, player_radius)
@@ -338,10 +338,10 @@ function RCW.update_top_view!(env::SingleRoom)
     player_radius = env.player_radius
     ray_cast_outputs = env.ray_cast_outputs
 
-    _, height_tile_map_tu, width_tile_map_tu = size(tile_map)
+    _, height_tile_map, width_tile_map = size(tile_map)
     height_top_view_pu, width_top_view_pu = size(top_view)
 
-    pu_per_tu = height_top_view_pu ÷ height_tile_map_tu
+    pu_per_tu = height_top_view_pu ÷ height_tile_map
 
     wu_per_pu = tile_length ÷ pu_per_tu
     i_player_position_pu = RCW.wu_to_pu(player_position[1], wu_per_pu)
